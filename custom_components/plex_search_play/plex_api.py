@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+from functools import partial
 import logging
 from typing import Any
 
@@ -64,6 +66,17 @@ class PlexSearchAPI:
         self._timeout = timeout
         self._server: PlexServer | None = None
 
+    def _connect_blocking(self) -> PlexServer:
+        """Blocking call to connect to Plex server.
+
+        This runs in an executor to avoid blocking the event loop.
+        """
+        return PlexServer(
+            self._plex_url,
+            self._plex_token,
+            timeout=self._timeout
+        )
+
     async def async_connect(self) -> bool:
         """Test connection to Plex server.
 
@@ -74,11 +87,10 @@ class PlexSearchAPI:
             PlexSearchAPIError: If connection fails
         """
         try:
-            self._server = PlexServer(
-                self._plex_url,
-                self._plex_token,
-                timeout=self._timeout
-            )
+            # Run blocking PlexServer call in executor
+            loop = asyncio.get_event_loop()
+            self._server = await loop.run_in_executor(None, self._connect_blocking)
+
             # Test the connection
             _ = self._server.friendlyName
             _LOGGER.info("Successfully connected to Plex server: %s", self._server.friendlyName)
@@ -98,6 +110,34 @@ class PlexSearchAPI:
         if self._server:
             return self._server.friendlyName
         return "Unknown"
+
+    def _search_blocking(
+        self,
+        query: str,
+        library_sections: list[str] | None = None,
+        limit: int = DEFAULT_SEARCH_LIMIT
+    ) -> list[Any]:
+        """Blocking call to search Plex library.
+
+        This runs in an executor to avoid blocking the event loop.
+        """
+        results = []
+
+        if library_sections:
+            # Search specific library sections
+            for section_name in library_sections:
+                try:
+                    section = self._server.library.section(section_name)
+                    section_results = section.search(query, limit=limit)
+                    results.extend(section_results)
+                except NotFound:
+                    _LOGGER.warning("Library section '%s' not found", section_name)
+                    continue
+        else:
+            # Search all libraries
+            results = self._server.library.search(query, limit=limit)
+
+        return results
 
     async def async_search(
         self,
@@ -122,21 +162,12 @@ class PlexSearchAPI:
             await self.async_connect()
 
         try:
-            results = []
-
-            if library_sections:
-                # Search specific library sections
-                for section_name in library_sections:
-                    try:
-                        section = self._server.library.section(section_name)
-                        section_results = section.search(query, limit=limit)
-                        results.extend(section_results)
-                    except NotFound:
-                        _LOGGER.warning("Library section '%s' not found", section_name)
-                        continue
-            else:
-                # Search all libraries
-                results = self._server.library.search(query, limit=limit)
+            # Run blocking search in executor
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(
+                None,
+                partial(self._search_blocking, query, library_sections, limit)
+            )
 
             if not results:
                 _LOGGER.info("No results found for query: %s", query)
