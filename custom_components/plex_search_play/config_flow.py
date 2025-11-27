@@ -178,7 +178,7 @@ class PlexSearchPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> PlexSearchPlayOptionsFlow:
         """Get the options flow for this handler."""
-        return PlexSearchPlayOptionsFlow(config_entry)
+        return PlexSearchPlayOptionsFlow()
 
 
 class PlexSearchPlayOptionsFlow(config_entries.OptionsFlow):
