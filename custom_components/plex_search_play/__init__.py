@@ -200,6 +200,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         try:
             # Get media URL from Plex
             media_url, media_type = await api.async_get_media_url(rating_key)
+            safe_url = media_url.replace(api._plex_token, "***")  # mask token for logs
+            _LOGGER.debug(
+                "Resolved media URL for rating_key=%s: %s (type: %s)",
+                rating_key,
+                safe_url,
+                media_type,
+            )
 
             # Call media_player.play_media service
             await hass.services.async_call(
