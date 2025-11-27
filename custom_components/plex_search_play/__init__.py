@@ -198,24 +198,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise HomeAssistantError(error_msg)
 
         try:
-            # Get media URL from Plex
-            media_url, media_type = await api.async_get_media_url(rating_key)
-            safe_url = media_url.replace(api._plex_token, "***")  # mask token for logs
-            _LOGGER.debug(
-                "Resolved media URL for rating_key=%s: %s (type: %s)",
-                rating_key,
-                safe_url,
-                media_type,
+            # Check if this is an Apple TV - they need special Plex deep linking
+            player_state = hass.states.get(player_entity_id)
+            is_apple_tv = (
+                player_state and
+                player_state.attributes.get("source") == "com.plexapp.plugins.library" or
+                "apple_tv" in player_entity_id.lower()
             )
 
-            # Call media_player.play_media service
-            # Determine the correct media content type
-            if media_type == "track":
-                content_type = MediaType.MUSIC
-            elif media_type in ("movie", "episode", "video"):
-                content_type = MediaType.VIDEO
-            else:
+            if is_apple_tv:
+                # Apple TV: Use Plex deep link format
+                machine_id = api.get_machine_identifier()
+                if not machine_id:
+                    raise HomeAssistantError("Could not get Plex server machine identifier")
+
+                # Plex deep link format for Apple TV
+                media_url = f"plex://preplay/?metadataKey=%2Flibrary%2Fmetadata%2F{rating_key}&server={machine_id}"
                 content_type = MediaType.URL
+                _LOGGER.debug(
+                    "Using Plex deep link for Apple TV - rating_key=%s, server=%s",
+                    rating_key,
+                    machine_id,
+                )
+            else:
+                # Other players: Use direct media URL
+                media_url, media_type = await api.async_get_media_url(rating_key)
+                safe_url = media_url.replace(api._plex_token, "***")
+                _LOGGER.debug(
+                    "Resolved media URL for rating_key=%s: %s (type: %s)",
+                    rating_key,
+                    safe_url,
+                    media_type,
+                )
+
+                # Determine the correct media content type
+                if media_type == "track":
+                    content_type = MediaType.MUSIC
+                elif media_type in ("movie", "episode", "video"):
+                    content_type = MediaType.VIDEO
+                else:
+                    content_type = MediaType.URL
 
             await hass.services.async_call(
                 MEDIA_PLAYER_DOMAIN,

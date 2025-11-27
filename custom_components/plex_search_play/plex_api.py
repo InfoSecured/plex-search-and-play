@@ -65,6 +65,7 @@ class PlexSearchAPI:
         self._plex_token = plex_token
         self._timeout = timeout
         self._server: PlexServer | None = None
+        self._machine_identifier: str | None = None
 
     def _connect_blocking(self) -> PlexServer:
         """Blocking call to connect to Plex server.
@@ -91,8 +92,9 @@ class PlexSearchAPI:
             loop = asyncio.get_event_loop()
             self._server = await loop.run_in_executor(None, self._connect_blocking)
 
-            # Test the connection
+            # Test the connection and get machine identifier
             _ = self._server.friendlyName
+            self._machine_identifier = self._server.machineIdentifier
             _LOGGER.info("Successfully connected to Plex server: %s", self._server.friendlyName)
             return True
         except Unauthorized as err:
@@ -110,6 +112,10 @@ class PlexSearchAPI:
         if self._server:
             return self._server.friendlyName
         return "Unknown"
+
+    def get_machine_identifier(self) -> str | None:
+        """Get the machine identifier of the Plex server."""
+        return self._machine_identifier
 
     def _search_blocking(
         self,
