@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
@@ -126,6 +127,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "libraries": libraries,
         "search_results": [],
     }
+
+    # Expose bundled Lovelace card for easy resource loading
+    card_path = Path(__file__).parent / "plex-search-card.js"
+    if card_path.exists():
+        try:
+            hass.http.register_static_path(
+                f"/hacsfiles/{DOMAIN}/plex-search-card.js",
+                str(card_path),
+                cache_headers=False,
+            )
+            _LOGGER.debug(
+                "Registered static path for Plex Search and Play card at /hacsfiles/%s/plex-search-card.js",
+                DOMAIN,
+            )
+        except Exception as err:  # pragma: no cover - defensive
+            _LOGGER.warning("Could not register static path for Plex Search card: %s", err)
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
