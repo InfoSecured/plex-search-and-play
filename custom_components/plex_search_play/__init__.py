@@ -105,11 +105,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Plex Search and Play from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Get configuration
+    # Get configuration - prefer options over data for player/library selection
     plex_url = entry.data[CONF_PLEX_URL]
     plex_token = entry.data[CONF_PLEX_TOKEN]
-    selected_players = entry.data.get(CONF_SELECTED_PLAYERS, [])
-    libraries = entry.data.get(CONF_LIBRARIES, [])
+    selected_players = entry.options.get(
+        CONF_SELECTED_PLAYERS,
+        entry.data.get(CONF_SELECTED_PLAYERS, [])
+    )
+    libraries = entry.options.get(
+        CONF_LIBRARIES,
+        entry.data.get(CONF_LIBRARIES, [])
+    )
 
     # Create API instance
     api = PlexSearchAPI(plex_url, plex_token)
@@ -130,6 +136,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Register update listener to reload when options change
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     # Register services
     async def handle_search(call: ServiceCall) -> None:
