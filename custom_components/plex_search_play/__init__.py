@@ -207,27 +207,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             raise HomeAssistantError(error_msg)
 
         try:
-            # Check if this is an Apple TV - they need special Plex deep linking
-            player_state = hass.states.get(player_entity_id)
-            is_apple_tv = (
-                player_state and
-                player_state.attributes.get("source") == "com.plexapp.plugins.library" or
-                "apple_tv" in player_entity_id.lower()
-            )
+            # Check if this is a Plex media player (from the Plex integration)
+            is_plex_player = "plex" in player_entity_id.lower() and "plex_search_play" not in player_entity_id.lower()
 
-            if is_apple_tv:
-                # Apple TV: Use Plex deep link format
-                machine_id = api.get_machine_identifier()
-                if not machine_id:
-                    raise HomeAssistantError("Could not get Plex server machine identifier")
-
-                # Plex deep link format for Apple TV
-                media_url = f"plex://preplay/?metadataKey=%2Flibrary%2Fmetadata%2F{rating_key}&server={machine_id}"
-                content_type = MediaType.URL
+            if is_plex_player:
+                # Plex media players: Use library metadata path
+                # The Plex integration accepts the library path directly
+                media_url = f"/library/metadata/{rating_key}"
+                content_type = "video"  # or MUSIC for music
                 _LOGGER.debug(
-                    "Using Plex deep link for Apple TV - rating_key=%s, server=%s",
-                    rating_key,
-                    machine_id,
+                    "Using Plex media player with library path: %s",
+                    media_url,
                 )
             else:
                 # Other players: Use direct media URL
