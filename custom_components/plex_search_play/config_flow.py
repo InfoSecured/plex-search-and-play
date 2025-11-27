@@ -184,10 +184,6 @@ class PlexSearchPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class PlexSearchPlayOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Plex Search and Play."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -195,7 +191,7 @@ class PlexSearchPlayOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        # Get current configuration
+        # Get current configuration - config_entry is provided by parent class
         current_players = self.config_entry.data.get(CONF_SELECTED_PLAYERS, [])
         current_libraries = self.config_entry.data.get(CONF_LIBRARIES, [])
 
