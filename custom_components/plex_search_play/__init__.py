@@ -214,8 +214,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 SERVICE_PLAY_MEDIA,
                 {
                     "entity_id": player_entity_id,
-                    # Fallback to VIDEO if unknown
-                    ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC if media_type == "track" else MediaType.VIDEO,
+                    # Apple TV and many players accept generic URL better than forcing VIDEO
+                    ATTR_MEDIA_CONTENT_TYPE: MediaType.MUSIC if media_type == "track" else MediaType.URL,
                     ATTR_MEDIA_CONTENT_ID: media_url,
                 },
                 blocking=True,
