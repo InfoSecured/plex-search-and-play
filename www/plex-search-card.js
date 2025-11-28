@@ -91,6 +91,41 @@ class PlexSearchCard extends HTMLElement {
     }).filter(result => result !== null && result.available);
   }
 
+  _renderPlayerSelector() {
+    if (!this.shadowRoot) return;
+
+    const playerSelectorContainer = this.shadowRoot.getElementById('playerSelectorContainer');
+    if (!playerSelectorContainer) return;
+
+    const players = this.getPlayerEntities();
+
+    if (players.length > 0) {
+      playerSelectorContainer.innerHTML = `
+        <div class="player-selector">
+          <select class="player-select" id="playerSelect">
+            <option value="">Select a player...</option>
+            ${players.map(entityId => {
+              const state = this._hass?.states[entityId];
+              const name = state?.attributes?.friendly_name || entityId;
+              const selected = this._selectedPlayer === entityId ? 'selected' : '';
+              return `<option value="${entityId}" ${selected}>${name}</option>`;
+            }).join('')}
+          </select>
+        </div>
+      `;
+
+      // Re-attach event listener
+      const playerSelect = this.shadowRoot.getElementById('playerSelect');
+      if (playerSelect) {
+        playerSelect.addEventListener('change', (e) => {
+          this._selectedPlayer = e.target.value;
+        });
+      }
+    } else {
+      playerSelectorContainer.innerHTML = '';
+    }
+  }
+
   render() {
     if (!this._config || !this.shadowRoot) return;
 
@@ -331,18 +366,7 @@ class PlexSearchCard extends HTMLElement {
             </button>
           </div>
 
-          ${this.getPlayerEntities().length > 0 ? `
-            <div class="player-selector">
-              <select class="player-select" id="playerSelect">
-                <option value="">Select a player...</option>
-                ${this.getPlayerEntities().map(entityId => {
-                  const state = this._hass?.states[entityId];
-                  const name = state?.attributes?.friendly_name || entityId;
-                  return `<option value="${entityId}">${name}</option>`;
-                }).join('')}
-              </select>
-            </div>
-          ` : ''}
+          <div id="playerSelectorContainer"></div>
 
           <div class="status-bar" id="statusBar">
             ${searchStatus}
@@ -356,12 +380,7 @@ class PlexSearchCard extends HTMLElement {
       this._rendered = true;
     }
 
-    // Keep player selection in sync with internal state
-    const playerSelect = this.shadowRoot.getElementById('playerSelect');
-    if (playerSelect) {
-      playerSelect.value = this._selectedPlayer || '';
-    }
-
+    this._renderPlayerSelector();
     this._updateStatus(searchStatus);
     this._renderResults();
   }
