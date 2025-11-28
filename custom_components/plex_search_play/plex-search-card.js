@@ -56,6 +56,24 @@ class PlexSearchCard extends HTMLElement {
     this._initialized = true;
   }
 
+  getPlayerEntities() {
+    // If player_entities specified in config, use those
+    if (this._config.player_entities && this._config.player_entities.length > 0) {
+      return this._config.player_entities;
+    }
+
+    // Otherwise, try to read from sensor's selected_players attribute
+    if (this._hass && this._config.entity) {
+      const statusEntity = this._hass.states[this._config.entity];
+      if (statusEntity && statusEntity.attributes && statusEntity.attributes.selected_players) {
+        return statusEntity.attributes.selected_players;
+      }
+    }
+
+    // Default to empty array
+    return [];
+  }
+
   updateResults() {
     if (!this._hass || !this._config.result_entities) return;
 
@@ -313,11 +331,11 @@ class PlexSearchCard extends HTMLElement {
             </button>
           </div>
 
-          ${this._config.player_entities.length > 0 ? `
+          ${this.getPlayerEntities().length > 0 ? `
             <div class="player-selector">
               <select class="player-select" id="playerSelect">
                 <option value="">Select a player...</option>
-                ${this._config.player_entities.map(entityId => {
+                ${this.getPlayerEntities().map(entityId => {
                   const state = this._hass?.states[entityId];
                   const name = state?.attributes?.friendly_name || entityId;
                   return `<option value="${entityId}">${name}</option>`;
@@ -395,38 +413,15 @@ class PlexSearchCard extends HTMLElement {
       });
     }
 
-    // Play buttons are attached in _renderResults after results render
-  }
-
-  performSearch() {
-    const searchInput = this.shadowRoot.getElementById('searchInput');
-    const query = searchInput?.value?.trim();
-
-    if (!query) {
-      alert('Please enter a search query');
-      return;
-    }
-
-    this._hass.callService('plex_search_play', 'search', {
-      query: query,
-      limit: 6
+    // Play buttons
+    const playButtons = this.shadowRoot.querySelectorAll('.play-button');
+    playButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const ratingKey = button.getAttribute('data-rating-key');
+        this.playMedia(ratingKey);
+      });
     });
-  }
-
-  playMedia(ratingKey) {
-    if (!this._selectedPlayer) {
-      alert('Please select a media player first');
-      return;
-    }
-
-    this._hass.callService('plex_search_play', 'play_media', {
-      rating_key: ratingKey,
-      player_entity_id: this._selectedPlayer
-    });
-  }
-
-  getCardSize() {
-    return 3;
   }
 
   _captureInputState() {
@@ -549,6 +544,37 @@ class PlexSearchCard extends HTMLElement {
 
     return false;
   }
+
+  performSearch() {
+    const searchInput = this.shadowRoot.getElementById('searchInput');
+    const query = searchInput?.value?.trim();
+
+    if (!query) {
+      alert('Please enter a search query');
+      return;
+    }
+
+    this._hass.callService('plex_search_play', 'search', {
+      query: query,
+      limit: 6
+    });
+  }
+
+  playMedia(ratingKey) {
+    if (!this._selectedPlayer) {
+      alert('Please select a media player first');
+      return;
+    }
+
+    this._hass.callService('plex_search_play', 'play_media', {
+      rating_key: ratingKey,
+      player_entity_id: this._selectedPlayer
+    });
+  }
+
+  getCardSize() {
+    return 3;
+  }
 }
 
 customElements.define('plex-search-card', PlexSearchCard);
@@ -568,4 +594,3 @@ console.info(
   'color: white; background: #e5a00d; font-weight: 700;',
   'color: #e5a00d; background: white; font-weight: 700;'
 );
-

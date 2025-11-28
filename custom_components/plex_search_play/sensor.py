@@ -85,9 +85,16 @@ class PlexSearchStatusSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional state attributes."""
+        # Get selected players and libraries from integration data
+        entry_data = self.hass.data[DOMAIN].get(self._config_entry.entry_id, {})
+        selected_players = entry_data.get("selected_players", [])
+        libraries = entry_data.get("libraries", [])
+
         return {
             "result_count": self._result_count,
             "last_query": self._last_query,
+            "selected_players": selected_players,
+            "libraries": libraries,
         }
 
     async def async_added_to_hass(self) -> None:
